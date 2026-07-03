@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeskPet Chat</title>
+    <style>
+        body { background: #121214; color: #f0f0f6; font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; padding: 20px; margin: 0; }
+        .container { background: #1a1a1e; padding: 25px; border-radius: 20px; max-width: 450px; margin: 20px auto; border: 1px solid #2a2a32; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        h1 { font-size: 24px; color: #fff; margin-bottom: 20px; }
+        label { display: block; text-align: left; margin: 15px 0 5px; font-size: 14px; color: #00b4d8; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+        input { width: 100%; padding: 14px; background: #222226; border: 2px solid #2a2a32; color: white; border-radius: 12px; margin-bottom: 15px; font-size: 16px; box-sizing: border-box; outline: none; transition: 0.3s; }
+        input:focus { border-color: #00b4d8; }
+        .btn { padding: 14px; background: #00b4d8; border: none; color: white; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,180,216,0.3); }
+        .btn:hover { background: #0096b4; transform: translateY(-1px); }
+        #output { margin-top: 25px; padding: 15px; background: #222226; border-radius: 12px; text-align: left; border-left: 4px solid #00b4d8; min-height: 40px; color: #e2e2e2; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 id="title-name">DeskPet Chat</h1>
+
+    <label>La tua API Key Gemini:</label>
+    <input type="password" id="apiKey" placeholder="Incolla qui la tua API Key">
+
+    <label>Nome del tuo Pet:</label>
+    <input type="text" id="petName" value="Strudel" oninput="aggiornaTitolo()">
+
+    <hr style="border: 0; border-top: 1px solid #2a2a32; margin: 20px 0;">
+
+    <label>Parla con il tuo Pet:</label>
+    <input type="text" id="userMsg" placeholder="Scrivi qualcosa...">
+    
+    <button onclick="inviaAIA()" class="btn">Invia Messaggio</button>
+
+    <div id="output">Il tuo pet è in attesa... 😊</div>
+</div>
+
+<script>
+    document.getElementById('apiKey').value = localStorage.getItem('apiKey') || '';
+    document.getElementById('petName').value = localStorage.getItem('petName') || 'Strudel';
+    aggiornaTitolo();
+
+    function aggiornaTitolo() {
+        const name = document.getElementById('petName').value.trim() || 'DeskPet';
+        document.getElementById('title-name').innerText = name;
+    }
+
+    async function inviaAIA() {
+        const key = document.getElementById('apiKey').value.trim();
+        const name = document.getElementById('petName').value.trim();
+        const msg = document.getElementById('userMsg').value.trim();
+        const outputDiv = document.getElementById('output');
+
+        if (!key || !msg) {
+            alert("Inserisci l'API Key e scrivi un messaggio!");
+            return;
+        }
+
+        localStorage.setItem('apiKey', key);
+        localStorage.setItem('petName', name);
+        outputDiv.innerText = "Sta pensando...";
+
+        const urlGemini = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+        const payload = {
+            systemInstruction: { parts: [{ text: `Sei un animaletto robotico vivo di nome ${name}. Sei carino e ironico. Rispondi in italiano. MASSIMO 5 PAROLE.` }] },
+            contents: [{ role: "user", parts: [{ text: msg }] }]
+        };
+
+        try {
+            const response = await fetch(urlGemini, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            let rispostaIA = data.candidates[0].content.parts[0].text.trim();
+            outputDiv.innerText = `${name}: ${rispostaIA}`;
+
+            // Invia il comando di rete locale al robot
+            fetch(`http://deskpet.local/mostra?testo=${encodeURIComponent(rispostaIA)}`, { mode: 'no-cors' });
+            document.getElementById('userMsg').value = "";
+
+        } catch (error) {
+            outputDiv.innerText = "Errore di connessione. Controlla la chiave Gemini o la rete.";
+            console.error(error);
+        }
+    }
+</script>
+
+</body>
+</html>
